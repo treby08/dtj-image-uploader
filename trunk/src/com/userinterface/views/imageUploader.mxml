@@ -1,11 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
 				   xmlns:s="library://ns.adobe.com/flex/spark" 
-				   xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="300">
+				   xmlns:mx="library://ns.adobe.com/flex/mx" width="500" height="350">
 	<s:layout>
-		<s:BasicLayout/>
+		<s:VerticalLayout/>
 	</s:layout>
-	<fx:Declarations>
-		<!-- Place non-visual elements (e.g., services, value objects) here -->
-	</fx:Declarations>
+	<s:VGroup width="100%" height="100%"> 
+		<s:Label text="Uploader" fontFamily="Georgia" fontSize="20"/>
+		<mx:DataGrid width="100%" height="90%" id="dgUploadList">
+			<mx:columns>
+				<mx:DataGridColumn id="dcFileName" dataField="filename" headerText="Filename"/>
+				<mx:DataGridColumn id="dcSize" dataField="size" headerText="Size" width="70"/>
+				<mx:DataGridColumn id="dcProgress" dataField="status" headerText="Status" width="150">
+					<mx:itemRenderer>
+						<fx:Component>										
+							<s:HGroup verticalAlign="middle" horizontalAlign="center" percentHeight="110" percentWidth="100"> 
+								<mx:ProgressBar id="pbar" name="pbar" label=" %3 %" labelPlacement="center" percentWidth="95" height="16" mode="event" /> 
+							</s:HGroup>
+						</fx:Component>
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn id="dcFile" dataField="file" headerText="" width="0"/>
+			</mx:columns>
+		</mx:DataGrid>
+		<s:HGroup width="100%" height="33" paddingLeft="3" paddingRight="3" verticalAlign="middle">
+			<s:Button id="btnAddFile" label="Add File" click="AddFile()"/>
+			<s:Button id="btnRemFile" label="Remove File" />
+			<mx:Spacer width="100%"/>
+			<s:Button id="btnUpload" label="Upload" click="uploadClickHandler(event)"/>
+		</s:HGroup>
+	</s:VGroup>
+
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			public var fileRef:FileReference;
+			private var fileRefList:FileReferenceList;
+			private var _totalBytes:Number;
+			private var _arrUploadFiles:Array;
+			private var _businessURL:String = "http://localhost/";
+			
+			private function AddFile() : void
+			{
+				fileRefList = new FileReferenceList();
+				var fileFilter:* = new FileFilter("Images (*.jpg,*.gif,*.png)", "*.jpg;*.gif;*.png");
+				try
+				{
+					fileRefList.browse([fileFilter]);
+				}
+				catch (error:Error)
+				{
+					Alert.show("Browse Already Open!");
+					return;
+				}
+				return;
+			}// end function
+			
+			private function selectHandler(event:Event) : void
+			{
+				var i:Number;
+				if (this.fileRefList.fileList.length >= 1)
+				{
+					i = 0;
+					while (i < fileRefList.fileList.length)
+					{
+						_totalBytes = _totalBytes + Number(fileRefList.fileList[i].size);
+						trace(fileRefList.fileList[i].toString());
+						_arrUploadFiles.push({filename:fileRefList.fileList[i].name, size:formatFileSize(fileRefList.fileList[i].size), file:fileRefList.fileList[i]});
+						i++;
+					}
+					dgUploadList.dataProvider = _arrUploadFiles;
+					dgUploadList.selectedIndex = _arrUploadFiles.length - 1;
+				}
+				
+			}// end function
+			
+			private function cancelHandler(event:Event) : void
+			{
+				return;
+			}// end function
+			
+			private function completeHandler(event:DataEvent) : void
+			{
+				return;
+			}// end function
+			
+			private function progressHandler(event:ProgressEvent) : void
+			{
+				return;
+			}// end function
+			
+			private function uploadClickHandler(event:MouseEvent) : void
+			{
+				if (_arrUploadFiles.length == 0) return;
+				
+				var obj:Object = null;
+				_businessURL = _businessURL + "uploaddata/php/imageUpload/imageUpload.php";
+				fileRef = new FileReference();
+				fileRef = dgUploadList.selectedItem.file;
+				fileRef.addEventListener(ProgressEvent.PROGRESS, progressHandler);
+				fileRef.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, completeHandler);
+				var request:URLRequest = new URLRequest(_businessURL);
+				var arrDP:Array = Array(this.dgUploadList.dataProvider);
+				
+				for  (var i:int=0;i < arrDP.length;i++){
+					obj = {};
+					obj.memberId = "1";
+					obj.viewName = arrDP[i].filename;
+					request.data = obj;
+					fileRef.upload(request);
+					
+				}
+			}
+			
+			private function formatFileSize(numSize:Number) : String
+			{
+				var strReturn:String = null;
+				numSize = Number(numSize / 1000);
+				strReturn = String(numSize.toFixed(1) + " KB");
+				if (numSize > 1000)
+				{
+					numSize = numSize / 1000;
+					strReturn = String(numSize.toFixed(1) + " MB");
+					if (numSize > 1000)
+					{
+						numSize = numSize / 1000;
+						strReturn = String(numSize.toFixed(1) + " GB");
+					}
+				}
+				return strReturn;
+			}
+		]]>
+	</fx:Script>
 </s:BorderContainer>
