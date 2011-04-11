@@ -38,7 +38,7 @@
 			private var fileRefList:FileReferenceList;
 			private var _totalBytes:Number;
 			private var _arrUploadFiles:Array;
-			private var _businessURL:String = "http://localhost/";
+			private var _businessURL:String = "http://localhost/flexportfolio/service/";
 			
 			private function AddFile() : void
 			{
@@ -95,7 +95,7 @@
 				if (_arrUploadFiles.length == 0) return;
 				
 				var obj:Object = null;
-				_businessURL = _businessURL + "uploaddata/php/imageUpload/imageUpload.php";
+				_businessURL = _businessURL + "imageUpload/imageUpload.php";
 				fileRef = new FileReference();
 				fileRef = dgUploadList.selectedItem.file;
 				fileRef.addEventListener(ProgressEvent.PROGRESS, progressHandler);
