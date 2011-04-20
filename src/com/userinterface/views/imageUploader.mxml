@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
 				   xmlns:s="library://ns.adobe.com/flex/spark" 
-				   xmlns:mx="library://ns.adobe.com/flex/mx" width="500" height="350">
+				   xmlns:mx="library://ns.adobe.com/flex/mx" width="500" height="350"
+				   creationComplete="initCom()">
 	<s:layout>
 		<s:VerticalLayout/>
 	</s:layout>
@@ -12,124 +13,252 @@
 				<mx:DataGridColumn id="dcFileName" dataField="filename" headerText="Filename"/>
 				<mx:DataGridColumn id="dcSize" dataField="size" headerText="Size" width="70"/>
 				<mx:DataGridColumn id="dcProgress" dataField="status" headerText="Status" width="150">
-					<mx:itemRenderer>
+					<!--<mx:itemRenderer>
 						<fx:Component>										
 							<s:HGroup verticalAlign="middle" horizontalAlign="center" percentHeight="110" percentWidth="100"> 
-								<mx:ProgressBar id="pbar" name="pbar" label=" %3 %" labelPlacement="center" percentWidth="95" height="16" mode="event" /> 
+								<mx:ProgressBar id="progBar" label=" %3 %" labelPlacement="center" percentWidth="95" height="16" mode="event" /> 
 							</s:HGroup>
 						</fx:Component>
-					</mx:itemRenderer>
+					</mx:itemRenderer>-->
 				</mx:DataGridColumn>
 				<mx:DataGridColumn id="dcFile" dataField="file" headerText="" width="0"/>
 			</mx:columns>
 		</mx:DataGrid>
 		<s:HGroup width="100%" height="33" paddingLeft="3" paddingRight="3" verticalAlign="middle">
-			<s:Button id="btnAddFile" label="Add File" click="AddFile()"/>
-			<s:Button id="btnRemFile" label="Remove File" />
+			<s:Button id="btnAddFile" label="Add File" click="addFiles()"/>
+			<s:Button id="btnRemFile" label="Remove File" click="removeFiles()"/>
 			<mx:Spacer width="100%"/>
-			<s:Button id="btnUpload" label="Upload" click="uploadClickHandler(event)"/>
+			<s:Button id="btnUpload" label="Upload" click="uploadClickHandler()"/>
 		</s:HGroup>
 	</s:VGroup>
 
 	<fx:Script>
 		<![CDATA[
+			import com.publicdatas.AccessUrl;
+			
 			import mx.controls.Alert;
-			public var fileRef:FileReference;
-			private var fileRefList:FileReferenceList;
-			private var _totalBytes:Number;
+			private var _strUploadUrl:String;
+			private var _refAddFiles:FileReferenceList;    
+			private var _refUploadFile:FileReference;
 			private var _arrUploadFiles:Array;
-			private var _businessURL:String = "http://localhost/flexportfolio/service/";
+			private var _numCurrentUpload:Number = 0;            
+		
+			// Initalize
+			private function initCom():void {
+				_strUploadUrl = AccessUrl.getHttpUrl+"/flexportfolio/service/imageUpload/imageUpload.php";
+				trace(_strUploadUrl);
+				_arrUploadFiles = new Array();                
+				enableUI();
+				uploadCheck();
+			}
 			
-			private function AddFile() : void
-			{
-				fileRefList = new FileReferenceList();
-				var fileFilter:* = new FileFilter("Images (*.jpg,*.gif,*.png)", "*.jpg;*.gif;*.png");
-				try
-				{
-					fileRefList.browse([fileFilter]);
-				}
-				catch (error:Error)
-				{
-					Alert.show("Browse Already Open!");
-					return;
-				}
-				return;
-			}// end function
+			// Called to add file(s) for upload
+			private function addFiles():void {
+				_refAddFiles = new FileReferenceList();
+				_refAddFiles.addEventListener(Event.SELECT, onSelectFile);
+				_refAddFiles.browse();
+			}
 			
-			private function selectHandler(event:Event) : void
-			{
-				var i:Number;
-				if (this.fileRefList.fileList.length >= 1)
-				{
-					i = 0;
-					while (i < fileRefList.fileList.length)
-					{
-						_totalBytes = _totalBytes + Number(fileRefList.fileList[i].size);
-						trace(fileRefList.fileList[i].toString());
-						_arrUploadFiles.push({filename:fileRefList.fileList[i].name, size:formatFileSize(fileRefList.fileList[i].size), file:fileRefList.fileList[i]});
-						i++;
+			// Called when a file is selected
+			private function onSelectFile(event:Event):void {
+				var arrFoundList:Array = new Array();
+				// Get list of files from fileList, make list of files already on upload list
+				for (var i:Number = 0; i < _arrUploadFiles.length; i++) {
+					for (var j:Number = 0; j < _refAddFiles.fileList.length; j++) {
+						if (_arrUploadFiles[i].name == _refAddFiles.fileList[j].name) {
+							arrFoundList.push(_refAddFiles.fileList[j].name);
+							_refAddFiles.fileList.splice(j, 1);
+							j--;
+						}
+					}
+				}
+				if (_refAddFiles.fileList.length >= 1) {                
+					for (var k:Number = 0; k < _refAddFiles.fileList.length; k++) {
+						_arrUploadFiles.push({
+							filename:_refAddFiles.fileList[k].name,
+							size:formatFileSize(_refAddFiles.fileList[k].size),
+							file:_refAddFiles.fileList[k]});
 					}
 					dgUploadList.dataProvider = _arrUploadFiles;
 					dgUploadList.selectedIndex = _arrUploadFiles.length - 1;
+				}                
+				if (arrFoundList.length >= 1) {
+					Alert.show("The file(s): \n\n• " + arrFoundList.join("\n• ") + "\n\n...are already on the upload list. Please change the filename(s) or pick a different file.", "File(s) already on list");
 				}
-				
-			}// end function
-			
-			private function cancelHandler(event:Event) : void
-			{
-				return;
-			}// end function
-			
-			private function completeHandler(event:DataEvent) : void
-			{
-				return;
-			}// end function
-			
-			private function progressHandler(event:ProgressEvent) : void
-			{
-				return;
-			}// end function
-			
-			private function uploadClickHandler(event:MouseEvent) : void
-			{
-				if (_arrUploadFiles.length == 0) return;
-				
-				var obj:Object = null;
-				_businessURL = _businessURL + "imageUpload/imageUpload.php";
-				fileRef = new FileReference();
-				fileRef = dgUploadList.selectedItem.file;
-				fileRef.addEventListener(ProgressEvent.PROGRESS, progressHandler);
-				fileRef.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, completeHandler);
-				var request:URLRequest = new URLRequest(_businessURL);
-				var arrDP:Array = Array(this.dgUploadList.dataProvider);
-				
-				for  (var i:int=0;i < arrDP.length;i++){
-					obj = {};
-					obj.memberId = "1";
-					obj.viewName = arrDP[i].filename;
-					request.data = obj;
-					fileRef.upload(request);
-					
-				}
+				//updateProgBar();
+				scrollFiles();
+				uploadCheck();
 			}
 			
-			private function formatFileSize(numSize:Number) : String
-			{
-				var strReturn:String = null;
+			// Called to format number to file size
+			private function formatFileSize(numSize:Number):String {
+				var strReturn:String;
 				numSize = Number(numSize / 1000);
 				strReturn = String(numSize.toFixed(1) + " KB");
-				if (numSize > 1000)
-				{
+				if (numSize > 1000) {
 					numSize = numSize / 1000;
 					strReturn = String(numSize.toFixed(1) + " MB");
-					if (numSize > 1000)
-					{
+					if (numSize > 1000) {
 						numSize = numSize / 1000;
 						strReturn = String(numSize.toFixed(1) + " GB");
 					}
-				}
+				}                
 				return strReturn;
 			}
+			
+			// Called to remove selected file(s) for upload
+			private function removeFiles():void {
+				var arrSelected:Array = dgUploadList.selectedIndices;
+				if (arrSelected.length >= 1) {
+					for (var i:Number = 0; i < arrSelected.length; i++) {
+						_arrUploadFiles[Number(arrSelected[i])] = null;
+					}
+					for (var j:Number = 0; j < _arrUploadFiles.length; j++) {
+						if (_arrUploadFiles[j] == null) {
+							_arrUploadFiles.splice(j, 1);
+							j--;
+						}
+					}
+					dgUploadList.dataProvider = _arrUploadFiles;
+					dgUploadList.selectedIndex = 0;                    
+				}
+				//updateProgBar();
+				scrollFiles();
+				uploadCheck();
+			}
+			
+			// Called to check if there is at least one file to upload
+			private function uploadCheck():void {
+				if (_arrUploadFiles.length == 0) {
+					btnUpload.enabled = false;
+					dgUploadList.verticalScrollPolicy = "off";
+				} else {
+					btnUpload.enabled = true;
+					dgUploadList.verticalScrollPolicy = "on";
+				}
+			}
+			
+			// Disable UI control
+			private function disableUI():void {
+				btnAddFile.enabled = false;
+				btnRemFile.enabled = false;
+				btnUpload.enabled = false;
+				//btnCancel.enabled = true;
+				dgUploadList.enabled = false;
+				dgUploadList.verticalScrollPolicy = "off";
+			}
+			
+			// Enable UI control
+			private function enableUI():void {
+				btnAddFile.enabled = true;
+				btnRemFile.enabled = true;
+				btnUpload.enabled = true;
+				//btnCancel.enabled = false;
+				dgUploadList.enabled = true;
+				dgUploadList.verticalScrollPolicy = "on";
+			}
+			
+			// Scroll listFiles to selected row
+			private function scrollFiles():void {
+				dgUploadList.verticalScrollPosition = dgUploadList.selectedIndex;
+				dgUploadList.validateNow();
+			}
+			
+			// Called to upload file based on current upload number
+			private function uploadClickHandler():void {
+				if (_arrUploadFiles.length > 0) {
+					disableUI();
+					
+					dgUploadList.selectedIndex = _numCurrentUpload;
+					scrollFiles();
+					
+					// Variables to send along with upload
+					// memberId
+					// viewName
+					// Filedata
+					
+					var sendVars:URLVariables = new URLVariables();
+					sendVars.memberId = "jenz";
+					sendVars.viewName = dgUploadList.selectedItem.filename;
+					
+					var request:URLRequest = new URLRequest();
+					request.data = sendVars;
+					request.url = _strUploadUrl;
+					trace(_strUploadUrl);
+					request.method = URLRequestMethod.POST;
+					_refUploadFile = new FileReference();
+					_refUploadFile = dgUploadList.selectedItem.file;
+					_refUploadFile.addEventListener(ProgressEvent.PROGRESS, onUploadProgress);
+					_refUploadFile.addEventListener(Event.COMPLETE, onUploadComplete);
+					_refUploadFile.addEventListener(IOErrorEvent.IO_ERROR, onUploadIoError);
+					_refUploadFile.addEventListener(SecurityErrorEvent.SECURITY_ERROR, onUploadSecurityError);
+					_refUploadFile.upload(request, "file", false);
+				}
+			}
+			
+			// Cancel and clear eventlisteners on last upload
+			private function clearUpload():void {
+				_refUploadFile.removeEventListener(ProgressEvent.PROGRESS, onUploadProgress);
+				_refUploadFile.removeEventListener(Event.COMPLETE, onUploadComplete);
+				_refUploadFile.removeEventListener(IOErrorEvent.IO_ERROR, onUploadIoError);
+				_refUploadFile.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onUploadSecurityError);
+				_refUploadFile.cancel();
+				_numCurrentUpload = 0;
+				//updateProgBar();
+				enableUI();
+			}
+			
+			// Called on upload cancel
+			private function onUploadCanceled():void {
+				clearUpload();
+				dispatchEvent(new Event("uploadCancel"));
+			}
+			
+			// Get upload progress
+			private function onUploadProgress(event:ProgressEvent):void {
+				var numPerc:Number = Math.round((event.bytesLoaded / event.bytesTotal) * 100);
+				//updateProgBar(numPerc);
+				var evt:ProgressEvent = new ProgressEvent("uploadProgress", false, false, event.bytesLoaded, event.bytesTotal);
+				dispatchEvent(evt);
+			}
+			
+			// Update progBar
+			/*private function updateProgBar(numPerc:Number = 0):void {
+				var strLabel:String = (_numCurrentUpload + 1) + "/" + _arrUploadFiles.length;
+				strLabel = (_numCurrentUpload + 1 <= _arrUploadFiles.length && numPerc > 0 && numPerc < 100) ? numPerc + "% - " + strLabel : strLabel;
+				strLabel = (_numCurrentUpload + 1 == _arrUploadFiles.length && numPerc == 100) ? "Upload Complete - " + strLabel : strLabel;
+				strLabel = (_arrUploadFiles.length == 0) ? "" : strLabel;
+				progBar.label = strLabel;
+				progBar.setProgress(numPerc, 100);
+				progBar.validateNow();
+			}*/
+			
+			// Called on upload complete
+			private function onUploadComplete(event:Event):void {
+				_numCurrentUpload++;                
+				if (_numCurrentUpload < _arrUploadFiles.length) {
+					uploadClickHandler();
+				} else {
+					enableUI();
+					clearUpload();
+					dispatchEvent(new Event("uploadComplete"));
+				}
+			}
+			
+			// Called on upload io error
+			private function onUploadIoError(event:IOErrorEvent):void {
+				clearUpload();
+				var evt:IOErrorEvent = new IOErrorEvent("uploadIoError", false, false, event.text);
+				dispatchEvent(evt);
+			}
+			
+			// Called on upload security error
+			private function onUploadSecurityError(event:SecurityErrorEvent):void {
+				clearUpload();
+				var evt:SecurityErrorEvent = new SecurityErrorEvent("uploadSecurityError", false, false, event.text);
+				dispatchEvent(evt);
+			}
+			
 		]]>
 	</fx:Script>
 </s:BorderContainer>
