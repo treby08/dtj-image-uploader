@@ -10,7 +10,7 @@
 		<![CDATA[
 			import com.publicdatas.AccessUrl;
 			private function onCompleteHandler():void{
-				AccessUrl.accesHttpUrl = "http://localhost"//"http://www.u-flip.com";
+				AccessUrl.accesHttpUrl = "http://trebster.orgfree.com";//"http://www.u-flip.com";
 			}
 		]]>
 	</fx:Script>
