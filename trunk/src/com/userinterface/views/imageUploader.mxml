@@ -14,9 +14,9 @@
 				<mx:DataGridColumn id="dcSize" dataField="size" headerText="Size" width="70"/>
 				<mx:DataGridColumn id="dcProgress" dataField="status" headerText="Status" width="150">
 					<!--<mx:itemRenderer>
-						<fx:Component>										
-							<s:HGroup verticalAlign="middle" horizontalAlign="center" percentHeight="110" percentWidth="100"> 
-								<mx:ProgressBar id="progBar" label=" %3 %" labelPlacement="center" percentWidth="95" height="16" mode="event" /> 
+						<fx:Component>
+							<s:HGroup verticalAlign="middle" horizontalAlign="center" percentHeight="100" percentWidth="100"> 
+								<mx:ProgressBar id="progBar" label=" %3 %" labelPlacement="center" percentWidth="95" height="16" mode="event" source="{outerDocument._UpProgress}" /> 
 							</s:HGroup>
 						</fx:Component>
 					</mx:itemRenderer>-->
@@ -42,10 +42,10 @@
 			private var _refUploadFile:FileReference;
 			private var _arrUploadFiles:Array;
 			private var _numCurrentUpload:Number = 0;            
-		
+			//
 			// Initalize
 			private function initCom():void {
-				_strUploadUrl = AccessUrl.getHttpUrl+"/flexportfolio/service/imageUpload/imageUpload.php";
+				_strUploadUrl = AccessUrl.getHttpUrl+"/flexphp/service/imageUpload/imageUpload.php";
 				trace(_strUploadUrl);
 				_arrUploadFiles = new Array();                
 				enableUI();
@@ -85,7 +85,7 @@
 				if (arrFoundList.length >= 1) {
 					Alert.show("The file(s): \n\n• " + arrFoundList.join("\n• ") + "\n\n...are already on the upload list. Please change the filename(s) or pick a different file.", "File(s) already on list");
 				}
-				//updateProgBar();
+				updateProgBar();
 				scrollFiles();
 				uploadCheck();
 			}
@@ -160,8 +160,8 @@
 			
 			// Scroll listFiles to selected row
 			private function scrollFiles():void {
-				dgUploadList.verticalScrollPosition = dgUploadList.selectedIndex;
-				dgUploadList.validateNow();
+				//dgUploadList.verticalScrollPosition = dgUploadList.selectedIndex;
+				//dgUploadList.validateNow();
 			}
 			
 			// Called to upload file based on current upload number
@@ -178,7 +178,7 @@
 					// Filedata
 					
 					var sendVars:URLVariables = new URLVariables();
-					sendVars.memberId = "jenz";
+					sendVars.memberId = "1";
 					sendVars.viewName = dgUploadList.selectedItem.filename;
 					
 					var request:URLRequest = new URLRequest();
@@ -217,24 +217,28 @@
 			// Get upload progress
 			private function onUploadProgress(event:ProgressEvent):void {
 				var numPerc:Number = Math.round((event.bytesLoaded / event.bytesTotal) * 100);
-				//updateProgBar(numPerc);
+				updateProgBar(numPerc);
 				var evt:ProgressEvent = new ProgressEvent("uploadProgress", false, false, event.bytesLoaded, event.bytesTotal);
 				dispatchEvent(evt);
 			}
 			
 			// Update progBar
-			/*private function updateProgBar(numPerc:Number = 0):void {
+			[Bindable]
+			public var _UpProgress:Number;
+			private function updateProgBar(numPerc:Number = 0):void {
 				var strLabel:String = (_numCurrentUpload + 1) + "/" + _arrUploadFiles.length;
 				strLabel = (_numCurrentUpload + 1 <= _arrUploadFiles.length && numPerc > 0 && numPerc < 100) ? numPerc + "% - " + strLabel : strLabel;
 				strLabel = (_numCurrentUpload + 1 == _arrUploadFiles.length && numPerc == 100) ? "Upload Complete - " + strLabel : strLabel;
 				strLabel = (_arrUploadFiles.length == 0) ? "" : strLabel;
-				progBar.label = strLabel;
-				progBar.setProgress(numPerc, 100);
-				progBar.validateNow();
-			}*/
+				_UpProgress = numPerc;
+//				progBar.label = strLabel;
+//				progBar.setProgress(numPerc, 100);
+//				progBar.validateNow();
+			}
 			
 			// Called on upload complete
 			private function onUploadComplete(event:Event):void {
+				trace(event.type);
 				_numCurrentUpload++;                
 				if (_numCurrentUpload < _arrUploadFiles.length) {
 					uploadClickHandler();
