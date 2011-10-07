@@ -8,22 +8,18 @@
 	</s:layout>
 	<s:VGroup width="100%" height="100%"> 
 		<s:Label text="Uploader" fontFamily="Georgia" fontSize="20"/>
-		<mx:DataGrid width="100%" height="90%" id="dgUploadList">
-			<mx:columns>
-				<mx:DataGridColumn id="dcFileName" dataField="filename" headerText="Filename"/>
-				<mx:DataGridColumn id="dcSize" dataField="size" headerText="Size" width="70"/>
-				<mx:DataGridColumn id="dcProgress" dataField="status" headerText="Status" width="150">
-					<!--<mx:itemRenderer>
-						<fx:Component>
-							<s:HGroup verticalAlign="middle" horizontalAlign="center" percentHeight="100" percentWidth="100"> 
-								<mx:ProgressBar id="progBar" label=" %3 %" labelPlacement="center" percentWidth="95" height="16" mode="event" source="{outerDocument._UpProgress}" /> 
-							</s:HGroup>
-						</fx:Component>
-					</mx:itemRenderer>-->
-				</mx:DataGridColumn>
-				<mx:DataGridColumn id="dcFile" dataField="file" headerText="" width="0"/>
-			</mx:columns>
-		</mx:DataGrid>
+		<s:DataGrid width="100%" height="90%" id="dgUploadList" selectionMode="multipleRows">
+			<s:columns>
+				<s:ArrayList>
+					<s:GridColumn id="dcFileName" dataField="filename" headerText="Filename"/>
+					<s:GridColumn id="dcSize" dataField="size" headerText="Size" width="70"/>
+					<s:GridColumn id="dcProgress" dataField="status" headerText="Status" width="150" itemRenderer="com.userinterface.views.ProgressRenderer">
+						
+					</s:GridColumn>
+					<s:GridColumn id="dcFile" dataField="file" headerText="" width="0"/>
+				</s:ArrayList>
+			</s:columns>
+		</s:DataGrid>
 		<s:HGroup width="100%" height="33" paddingLeft="3" paddingRight="3" verticalAlign="middle">
 			<s:Button id="btnAddFile" label="Add File" click="addFiles()"/>
 			<s:Button id="btnRemFile" label="Remove File" click="removeFiles()"/>
@@ -31,23 +27,24 @@
 			<s:Button id="btnUpload" label="Upload" click="uploadClickHandler()"/>
 		</s:HGroup>
 	</s:VGroup>
-
+	
 	<fx:Script>
 		<![CDATA[
 			import com.publicdatas.AccessUrl;
 			
+			import mx.collections.ArrayCollection;
 			import mx.controls.Alert;
 			private var _strUploadUrl:String;
 			private var _refAddFiles:FileReferenceList;    
 			private var _refUploadFile:FileReference;
-			private var _arrUploadFiles:Array;
+			private var _arrUploadFiles:ArrayCollection;
 			private var _numCurrentUpload:Number = 0;            
 			//
 			// Initalize
 			private function initCom():void {
 				_strUploadUrl = AccessUrl.getHttpUrl+"/flexphp/service/imageUpload/imageUpload.php";
 				trace(_strUploadUrl);
-				_arrUploadFiles = new Array();                
+				_arrUploadFiles = new ArrayCollection();                
 				enableUI();
 				uploadCheck();
 			}
@@ -56,7 +53,7 @@
 			private function addFiles():void {
 				_refAddFiles = new FileReferenceList();
 				_refAddFiles.addEventListener(Event.SELECT, onSelectFile);
-				_refAddFiles.browse();
+				_refAddFiles.browse();  
 			}
 			
 			// Called when a file is selected
@@ -65,7 +62,7 @@
 				// Get list of files from fileList, make list of files already on upload list
 				for (var i:Number = 0; i < _arrUploadFiles.length; i++) {
 					for (var j:Number = 0; j < _refAddFiles.fileList.length; j++) {
-						if (_arrUploadFiles[i].name == _refAddFiles.fileList[j].name) {
+						if (_arrUploadFiles.getItemAt(i).name == _refAddFiles.fileList[j].name) {
 							arrFoundList.push(_refAddFiles.fileList[j].name);
 							_refAddFiles.fileList.splice(j, 1);
 							j--;
@@ -74,7 +71,7 @@
 				}
 				if (_refAddFiles.fileList.length >= 1) {                
 					for (var k:Number = 0; k < _refAddFiles.fileList.length; k++) {
-						_arrUploadFiles.push({
+						_arrUploadFiles.addItem({
 							filename:_refAddFiles.fileList[k].name,
 							size:formatFileSize(_refAddFiles.fileList[k].size),
 							file:_refAddFiles.fileList[k]});
@@ -108,16 +105,12 @@
 			
 			// Called to remove selected file(s) for upload
 			private function removeFiles():void {
-				var arrSelected:Array = dgUploadList.selectedIndices;
+				var arrSelected:Array = String(dgUploadList.selectedIndices).split(",");
+				arrSelected = arrSelected.reverse();
 				if (arrSelected.length >= 1) {
-					for (var i:Number = 0; i < arrSelected.length; i++) {
-						_arrUploadFiles[Number(arrSelected[i])] = null;
-					}
-					for (var j:Number = 0; j < _arrUploadFiles.length; j++) {
-						if (_arrUploadFiles[j] == null) {
-							_arrUploadFiles.splice(j, 1);
-							j--;
-						}
+					for (var j:int = 0; j < arrSelected.length; j++) {
+						_arrUploadFiles.removeItemAt(arrSelected[j]);
+					
 					}
 					dgUploadList.dataProvider = _arrUploadFiles;
 					dgUploadList.selectedIndex = 0;                    
@@ -131,10 +124,10 @@
 			private function uploadCheck():void {
 				if (_arrUploadFiles.length == 0) {
 					btnUpload.enabled = false;
-					dgUploadList.verticalScrollPolicy = "off";
+					//dgUploadList.verticalScrollPolicy = "off";
 				} else {
 					btnUpload.enabled = true;
-					dgUploadList.verticalScrollPolicy = "on";
+					//dgUploadList.verticalScrollPolicy = "on";
 				}
 			}
 			
@@ -145,7 +138,7 @@
 				btnUpload.enabled = false;
 				//btnCancel.enabled = true;
 				dgUploadList.enabled = false;
-				dgUploadList.verticalScrollPolicy = "off";
+				//dgUploadList.verticalScrollPolicy = "off";
 			}
 			
 			// Enable UI control
@@ -155,7 +148,7 @@
 				btnUpload.enabled = true;
 				//btnCancel.enabled = false;
 				dgUploadList.enabled = true;
-				dgUploadList.verticalScrollPolicy = "on";
+				//dgUploadList.verticalScrollPolicy = "on";
 			}
 			
 			// Scroll listFiles to selected row
