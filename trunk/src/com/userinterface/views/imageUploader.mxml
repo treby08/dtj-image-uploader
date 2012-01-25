@@ -1,30 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:BorderContainer xmlns:fx="http://ns.adobe.com/mxml/2009" 
 				   xmlns:s="library://ns.adobe.com/flex/spark" 
-				   xmlns:mx="library://ns.adobe.com/flex/mx" width="500" height="350"
-				   creationComplete="initCom()">
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   creationComplete="initCom()" backgroundAlpha="0.3" borderWeight="5" borderColor="0xAAAAAA" borderStyle="inset">
 	<s:layout>
 		<s:VerticalLayout/>
 	</s:layout>
-	<s:VGroup width="100%" height="100%"> 
-		<s:Label text="Uploader" fontFamily="Georgia" fontSize="20"/>
-		<s:DataGrid width="100%" height="90%" id="dgUploadList" selectionMode="multipleRows">
-			<s:columns>
-				<s:ArrayList>
-					<s:GridColumn id="dcFileName" dataField="filename" headerText="Filename"/>
-					<s:GridColumn id="dcSize" dataField="size" headerText="Size" width="70"/>
-					<s:GridColumn id="dcProgress" dataField="status" headerText="Status" width="150" itemRenderer="com.userinterface.views.ProgressRenderer">
-						
-					</s:GridColumn>
-					<s:GridColumn id="dcFile" dataField="file" headerText="" width="0"/>
-				</s:ArrayList>
-			</s:columns>
-		</s:DataGrid>
+	
+	<s:VGroup width="100%" height="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10"> 
+		<s:Label text="Image Uploader" fontFamily="Georgia" fontSize="20" fontStyle="italic"/>
+		<s:HGroup width="80%" verticalAlign="middle" paddingLeft="10">
+			<s:TextInput id="albumName" prompt="Album Name" width="100%" text="trebyAlbum"/>
+			<s:TextInput id="txtOwner" prompt="Owner" width="100%" text="treby"/>
+		</s:HGroup>
+		
+		
+		<mx:DataGrid width="100%" height="90%" id="dgUploadList" allowMultipleSelection="true" doubleClickEnabled="true" 
+					itemDoubleClick="dgUploadListdoubleClickHandler(event)" itemClick="dgUploadListclickHandler(event)" resizableColumns="false"
+					sortableColumns="false" selectionColor="0xBBBBBB" rollOverColor="0xCCCCCC" alternatingItemColors="[#EEEEEE,#DFDFDF]"
+					textRollOverColor="0xFFFF00" focusColor="0xAAAAAA" tabEnabled="false" tabIndex="1000" tabChildren="false">
+			<mx:columns>
+				<!--<s:ArrayList> itemRenderer="com.userinterface.views.ProgressRenderer" -->
+					<mx:DataGridColumn id="dcFileName" dataField="filename" headerText="Filename" editable="true" />
+					<mx:DataGridColumn id="dcSize" dataField="size" headerText="Size" width="70" editable="false"/>
+					<mx:DataGridColumn id="dcProgress" dataField="status" headerText="Status" width="150" editable="false" itemRenderer="com.userinterface.views.myProgressItemRenderer"/>
+				<!--</s:ArrayList>-->
+			</mx:columns>
+		</mx:DataGrid>
 		<s:HGroup width="100%" height="33" paddingLeft="3" paddingRight="3" verticalAlign="middle">
 			<s:Button id="btnAddFile" label="Add File" click="addFiles()"/>
 			<s:Button id="btnRemFile" label="Remove File" click="removeFiles()"/>
 			<mx:Spacer width="100%"/>
-			<s:Button id="btnUpload" label="Upload" click="uploadClickHandler()"/>
+			<s:Button id="btnUpload" label="Upload"/>
 		</s:HGroup>
 	</s:VGroup>
 	
@@ -34,56 +41,81 @@
 			
 			import mx.collections.ArrayCollection;
 			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			
+			import spark.components.supportClasses.ItemRenderer;
+			import spark.skins.spark.DefaultGridItemRenderer;
 			private var _strUploadUrl:String;
 			private var _refAddFiles:FileReferenceList;    
 			private var _refUploadFile:FileReference;
-			private var _arrUploadFiles:ArrayCollection;
-			private var _numCurrentUpload:Number = 0;            
+			public var _arrUploadFiles:ArrayCollection;
+			private var _numCurrentUpload:Number = 0;      
+			
+			private static var UPLOAD:String = "Upload";
+			private static var RESET:String = "Reset";
+			private static var CANCEL:String = "Cancel";
 			//
 			// Initalize
 			private function initCom():void {
-				_strUploadUrl = AccessUrl.getHttpUrl+"/flexphp/service/imageUpload/imageUpload.php";
+			
+				_strUploadUrl = AccessUrl.getHttpUrl+AccessUrl.getUploadPHP+"imageUpload.php";
 				trace(_strUploadUrl);
 				_arrUploadFiles = new ArrayCollection();                
 				enableUI();
 				uploadCheck();
+				btnUpload.addEventListener(MouseEvent.CLICK,uploadClickHandler);
 			}
 			
 			// Called to add file(s) for upload
 			private function addFiles():void {
 				_refAddFiles = new FileReferenceList();
 				_refAddFiles.addEventListener(Event.SELECT, onSelectFile);
-				_refAddFiles.browse();  
+				var fileFilter:FileFilter = new FileFilter("Images (*.jpg,*.gif,*.png,*.bmp)", "*.jpg;*.gif;*.png;*.bmp");
+				_refAddFiles.browse([fileFilter]);  
 			}
 			
 			// Called when a file is selected
 			private function onSelectFile(event:Event):void {
+				
+				var _fleRef:FileReference = _refAddFiles.fileList[ _refAddFiles.fileList.length-1];
+				var arrMediaSupportdFile:Array = [".jpg", ".gif", ".png", ".bmp"];
+				var arrFile:Array = String(_fleRef.name).split(".");
 				var arrFoundList:Array = new Array();
+				var i:int;
+				if (_arrUploadFiles == null)
+					_arrUploadFiles = new ArrayCollection();
 				// Get list of files from fileList, make list of files already on upload list
-				for (var i:Number = 0; i < _arrUploadFiles.length; i++) {
-					for (var j:Number = 0; j < _refAddFiles.fileList.length; j++) {
-						if (_arrUploadFiles.getItemAt(i).name == _refAddFiles.fileList[j].name) {
-							arrFoundList.push(_refAddFiles.fileList[j].name);
-							_refAddFiles.fileList.splice(j, 1);
-							j--;
+				if (_arrUploadFiles.length > 0){
+					for (i = 0; i < _arrUploadFiles.length; i++) {
+						for (var j:Number = 0; j < _refAddFiles.fileList.length; j++) {
+							if (_arrUploadFiles.getItemAt(i).filename == _refAddFiles.fileList[j].name) {
+								arrFoundList.push(_refAddFiles.fileList[j].name);
+								_refAddFiles.fileList.splice(j, 1);
+								j--;
+							}
 						}
 					}
-				}
+					}
 				if (_refAddFiles.fileList.length >= 1) {                
 					for (var k:Number = 0; k < _refAddFiles.fileList.length; k++) {
+						if (arrMediaSupportdFile.indexOf(String(_refAddFiles.fileList[k].type).toLowerCase()) != -1){
 						_arrUploadFiles.addItem({
 							filename:_refAddFiles.fileList[k].name,
 							size:formatFileSize(_refAddFiles.fileList[k].size),
-							file:_refAddFiles.fileList[k]});
+							type:_refAddFiles.fileList[k].type,
+							file:_refAddFiles.fileList[k],
+							status:_refAddFiles.fileList[k]});
+						}
 					}
 					dgUploadList.dataProvider = _arrUploadFiles;
-					dgUploadList.selectedIndex = _arrUploadFiles.length - 1;
-				}                
+					//dgUploadList.selectedIndex = _arrUploadFiles.length - 1;
+				}    
+				
 				if (arrFoundList.length >= 1) {
 					Alert.show("The file(s): \n\n• " + arrFoundList.join("\n• ") + "\n\n...are already on the upload list. Please change the filename(s) or pick a different file.", "File(s) already on list");
 				}
 				updateProgBar();
-				scrollFiles();
+				
 				uploadCheck();
 			}
 			
@@ -105,16 +137,21 @@
 			
 			// Called to remove selected file(s) for upload
 			private function removeFiles():void {
+				if (_arrUploadFiles == null || _arrUploadFiles.length == 0) return;
 				var arrSelected:Array = String(dgUploadList.selectedIndices).split(",");
-				arrSelected = arrSelected.reverse();
-				if (arrSelected.length >= 1) {
-					for (var j:int = 0; j < arrSelected.length; j++) {
-						_arrUploadFiles.removeItemAt(arrSelected[j]);
+				var tempArrUploadFiles:ArrayCollection = new ArrayCollection();
+				//arrSelected = arrSelected.reverse();
+				if (arrSelected.length > 0) {
+					for (var j:int = 0; j < _arrUploadFiles.length; j++) {
+						if (arrSelected.indexOf(String(j)) == -1)
+							tempArrUploadFiles.addItem(_arrUploadFiles.getItemAt(j));
 					
 					}
+					_arrUploadFiles = tempArrUploadFiles;
 					dgUploadList.dataProvider = _arrUploadFiles;
-					dgUploadList.selectedIndex = 0;                    
+					dgUploadList.selectedIndex = -1;                    
 				}
+				dgUploadList.invalidateDisplayList();
 				//updateProgBar();
 				scrollFiles();
 				uploadCheck();
@@ -135,8 +172,8 @@
 			private function disableUI():void {
 				btnAddFile.enabled = false;
 				btnRemFile.enabled = false;
-				btnUpload.enabled = false;
-				//btnCancel.enabled = true;
+				txtOwner.enabled = false;
+				albumName.enabled = false;
 				dgUploadList.enabled = false;
 				//dgUploadList.verticalScrollPolicy = "off";
 			}
@@ -145,24 +182,30 @@
 			private function enableUI():void {
 				btnAddFile.enabled = true;
 				btnRemFile.enabled = true;
-				btnUpload.enabled = true;
-				//btnCancel.enabled = false;
+				txtOwner.enabled = true;
+				albumName.enabled = true;
 				dgUploadList.enabled = true;
 				//dgUploadList.verticalScrollPolicy = "on";
 			}
 			
 			// Scroll listFiles to selected row
 			private function scrollFiles():void {
-				//dgUploadList.verticalScrollPosition = dgUploadList.selectedIndex;
-				//dgUploadList.validateNow();
+				if (dgUploadList.selectedIndex > -1){
+					dgUploadList.verticalScrollPosition = dgUploadList.selectedIndex;
+					dgUploadList.invalidateDisplayList();
+				}
 			}
 			
 			// Called to upload file based on current upload number
-			private function uploadClickHandler():void {
-				if (_arrUploadFiles.length > 0) {
+			private function uploadClickHandler(e:Event = null):void {
+				if (uploadErrorChecking()) {
 					disableUI();
-					
 					dgUploadList.selectedIndex = _numCurrentUpload;
+					if (btnUpload.hasEventListener(MouseEvent.CLICK) && btnUpload.label == UPLOAD){
+						btnUpload.removeEventListener(MouseEvent.CLICK,uploadClickHandler);
+						btnUpload.addEventListener(MouseEvent.CLICK,onUploadCanceled);
+						btnUpload.label = CANCEL;
+					}
 					scrollFiles();
 					
 					// Variables to send along with upload
@@ -173,6 +216,9 @@
 					var sendVars:URLVariables = new URLVariables();
 					sendVars.memberId = "1";
 					sendVars.viewName = dgUploadList.selectedItem.filename;
+					sendVars.type = dgUploadList.selectedItem.type;
+					sendVars.albumName = albumName.text;
+					sendVars.owner = txtOwner.text;
 					
 					var request:URLRequest = new URLRequest();
 					request.data = sendVars;
@@ -189,6 +235,22 @@
 				}
 			}
 			
+			private function uploadErrorChecking():Boolean{
+				var arrError:Array = new Array();
+				
+				if (_arrUploadFiles.length == 0)
+					arrError.push("No Files to be uploaded");
+				if (albumName.text == "")
+					arrError.push("Album Name Field Empty");
+				if (txtOwner.text == "")
+					arrError.push("Owner Field Empty");
+				if (arrError.length > 0){
+					Alert.show("Error found on the ff:\n •  " + arrError.join("\n •  "),"Upload Error");
+					return false;
+				}
+				return true;
+			}
+			
 			// Cancel and clear eventlisteners on last upload
 			private function clearUpload():void {
 				_refUploadFile.removeEventListener(ProgressEvent.PROGRESS, onUploadProgress);
@@ -198,32 +260,37 @@
 				_refUploadFile.cancel();
 				_numCurrentUpload = 0;
 				//updateProgBar();
-				enableUI();
+				//enableUI();
 			}
 			
 			// Called on upload cancel
-			private function onUploadCanceled():void {
+			private function onUploadCanceled(e:Event):void {
 				clearUpload();
-				dispatchEvent(new Event("uploadCancel"));
+				enableUI();
+				btnUpload.removeEventListener(MouseEvent.CLICK,onUploadCanceled);
+				btnUpload.addEventListener(MouseEvent.CLICK,uploadClickHandler);
+				btnUpload.label = UPLOAD;
 			}
 			
 			// Get upload progress
-			private function onUploadProgress(event:ProgressEvent):void {
-				var numPerc:Number = Math.round((event.bytesLoaded / event.bytesTotal) * 100);
+			private function onUploadProgress(e:ProgressEvent):void {
+				var numPerc:Number = Math.round((e.bytesLoaded / e.bytesTotal) * 100);
 				updateProgBar(numPerc);
-				var evt:ProgressEvent = new ProgressEvent("uploadProgress", false, false, event.bytesLoaded, event.bytesTotal);
-				dispatchEvent(evt);
+				trace("Main: ",e.bytesLoaded,"of",e.bytesTotal)
+				
 			}
 			
 			// Update progBar
 			[Bindable]
 			public var _UpProgress:Number;
 			private function updateProgBar(numPerc:Number = 0):void {
+				if (_arrUploadFiles == null) return;
 				var strLabel:String = (_numCurrentUpload + 1) + "/" + _arrUploadFiles.length;
 				strLabel = (_numCurrentUpload + 1 <= _arrUploadFiles.length && numPerc > 0 && numPerc < 100) ? numPerc + "% - " + strLabel : strLabel;
 				strLabel = (_numCurrentUpload + 1 == _arrUploadFiles.length && numPerc == 100) ? "Upload Complete - " + strLabel : strLabel;
 				strLabel = (_arrUploadFiles.length == 0) ? "" : strLabel;
 				_UpProgress = numPerc;
+				trace("in Progress");
 //				progBar.label = strLabel;
 //				progBar.setProgress(numPerc, 100);
 //				progBar.validateNow();
@@ -231,17 +298,38 @@
 			
 			// Called on upload complete
 			private function onUploadComplete(event:Event):void {
-				trace(event.type);
+				trace(_arrUploadFiles[_numCurrentUpload].filename,": Upload Complete!");
+				if (_arrUploadFiles == null) return;
 				_numCurrentUpload++;                
 				if (_numCurrentUpload < _arrUploadFiles.length) {
 					uploadClickHandler();
 				} else {
-					enableUI();
+					disableUI();
 					clearUpload();
+					btnUpload.label = RESET;
+					btnUpload.removeEventListener(MouseEvent.CLICK,uploadClickHandler);
+					btnUpload.addEventListener(MouseEvent.CLICK,resetUploader);
 					dispatchEvent(new Event("uploadComplete"));
 				}
 			}
 			
+			private function resetUploader(e:Event):void{
+				
+				enableUI();
+				dgUploadList.selectedIndex = -1;
+				txtOwner.text = "";
+				albumName.text = "";
+				_arrUploadFiles = null;
+				dgUploadList.itemRenderer = null
+				dgUploadList.dataProvider = _arrUploadFiles;
+				dgUploadList.invalidateDisplayList()
+				btnUpload.enabled = false;
+				btnUpload.removeEventListener(MouseEvent.CLICK,resetUploader);
+				btnUpload.addEventListener(MouseEvent.CLICK,uploadClickHandler);
+				btnUpload.label = UPLOAD;
+				
+				
+			}
 			// Called on upload io error
 			private function onUploadIoError(event:IOErrorEvent):void {
 				clearUpload();
@@ -254,6 +342,19 @@
 				clearUpload();
 				var evt:SecurityErrorEvent = new SecurityErrorEvent("uploadSecurityError", false, false, event.text);
 				dispatchEvent(evt);
+			}
+			
+			protected function dgUploadListdoubleClickHandler(event:ListEvent):void
+			{
+				//if (event.target is GridColumn && GridColumn(event.target).id)
+				dgUploadList.editable = true;
+				dgUploadList.editedItemPosition = {columnIndex:0,rowIndex:event.rowIndex};
+				
+			}
+			
+			protected function dgUploadListclickHandler(event:Event):void
+			{
+				dgUploadList.editable = false
 			}
 			
 		]]>

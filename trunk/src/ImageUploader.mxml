@@ -2,17 +2,18 @@
 <s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
 			   xmlns:s="library://ns.adobe.com/flex/spark" 
 			   xmlns:mx="library://ns.adobe.com/flex/mx"
-			   width="955" height="600"
+			   width="100%" height="100%"
 			   initialize="onCompleteHandler()"
-			   xmlns:views="com.userinterface.views.*">
+			   xmlns:views="com.userinterface.views.*" skinClass="skins.AppSkin">
 	<!--<s:Label text="hello WOrld"/>-->
 	<fx:Script>
 		<![CDATA[
 			import com.publicdatas.AccessUrl;
 			private function onCompleteHandler():void{
-				AccessUrl.accesHttpUrl = "http://trebster.orgfree.com";//"http://www.u-flip.com";
+				AccessUrl.accesHttpUrl = "http://localhost";//"http://trebster.orgfree.com";//"http://www.u-flip.com";
+				AccessUrl.uploadPHP = "/flexportfolio/service/imageUpload/";
 			}
 		]]>
 	</fx:Script>
-	<views:imageUploader y="50" width="500" height="350"/>
+	<views:imageUploader id="imgUp" y="{(height/2) - (imgUp.height/2)}" x="{(width/2) - (imgUp.width/2)}" width="700" height="500"/>
 </s:Application>
